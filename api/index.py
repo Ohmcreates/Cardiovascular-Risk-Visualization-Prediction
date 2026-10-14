@@ -1,14 +1,25 @@
 import sys
 import os
+import traceback
 from pathlib import Path
 
 # Setup paths for Vercel Serverless Function
-root_dir = Path(__file__).resolve().parent.parent
-backend_src = root_dir / "backend" / "src"
+lib_dir = str(Path(__file__).resolve().parent / "lib")
+if lib_dir not in sys.path:
+    sys.path.insert(0, lib_dir)
 
-for path_entry in [str(backend_src), str(root_dir / "backend"), str(root_dir)]:
-    if path_entry not in sys.path:
-        sys.path.insert(0, path_entry)
-
-# Import the FastAPI application
-from main import app
+try:
+    from main import app
+except Exception as e:
+    err_tb = traceback.format_exc()
+    print(f"Error loading main app: {err_tb}")
+    from fastapi import FastAPI
+    from fastapi.responses import JSONResponse
+    app = FastAPI()
+    
+    @app.api_route("/{path_name:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"])
+    def catch_all(path_name: str):
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e), "traceback": err_tb}
+        )
