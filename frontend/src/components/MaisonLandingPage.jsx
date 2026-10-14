@@ -156,15 +156,17 @@ export default function MaisonLandingPage({ onNavigateToLogin, theme = 'dark' })
           
           {/* Brand Monogram */}
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full border border-[#C5A880]/50 flex items-center justify-center bg-[#C5A880]/5 text-[#C5A880] shadow-sm">
-              <span className="font-cinzel font-bold text-sm tracking-widest">CV</span>
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-amber-500/80 p-0.5 shadow-md shadow-blue-900/30">
+              <div className="w-full h-full bg-[#0B0C11] rounded-[14px] flex items-center justify-center text-[#F3E8D0]">
+                <span className="font-cinzel font-black text-sm tracking-widest text-[#E6C687]">SL</span>
+              </div>
             </div>
             <div className="flex flex-col">
               <span className="font-cinzel text-sm sm:text-base font-bold tracking-[0.25em] text-[#F3E8D0] uppercase">
-                Maison CardioVision
+                Sellution <span className="text-[#C5A880] font-normal italic">Maison</span>
               </span>
               <span className="text-[9px] tracking-[0.3em] text-[#C5A880]/80 uppercase font-medium">
-                Paris &bull; Cleveland &bull; Rochester
+                Cardiovascular 3D Twin &bull; Est. 2026
               </span>
             </div>
           </div>
@@ -184,7 +186,7 @@ export default function MaisonLandingPage({ onNavigateToLogin, theme = 'dark' })
               onClick={() => onNavigateToLogin('clinical')}
               className="px-5 py-2.5 rounded-full border border-[#C5A880]/60 bg-[#C5A880]/10 hover:bg-[#C5A880] text-[#F3E8D0] hover:text-[#07080B] text-xs font-semibold tracking-[0.18em] uppercase transition-all duration-300 shadow-md flex items-center gap-2 cursor-pointer group"
             >
-              <span>Enter The Maison</span>
+              <span>Enter Sellution</span>
               <ArrowRight className="w-3.5 h-3.5 text-[#C5A880] group-hover:text-[#07080B] group-hover:translate-x-1 transition-all" />
             </button>
           </div>
@@ -687,11 +689,13 @@ export default function MaisonLandingPage({ onNavigateToLogin, theme = 'dark' })
           
           <div className="md:col-span-5 space-y-4">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full border border-[#C5A880]/40 flex items-center justify-center text-[#C5A880] text-xs font-cinzel">
-                CV
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-amber-500/80 p-0.5 shadow-md">
+                <div className="w-full h-full bg-[#0B0C11] rounded-[10px] flex items-center justify-center text-[#E6C687] text-xs font-cinzel font-bold">
+                  SL
+                </div>
               </div>
               <span className="font-cinzel text-sm font-bold tracking-[0.25em] text-[#F3E8D0] uppercase">
-                Maison CardioVision
+                Sellution <span className="text-[#C5A880] font-normal italic">Maison</span>
               </span>
             </div>
             <p className="text-[11px] font-light text-[#C5A880]/70 leading-relaxed max-w-sm">
@@ -745,7 +749,7 @@ export default function MaisonLandingPage({ onNavigateToLogin, theme = 'dark' })
         </div>
 
         <div className="max-w-7xl mx-auto pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-[10px] font-mono tracking-widest uppercase">
-          <span>&copy; 2026 Maison CardioVision 3D. All Rights Reserved.</span>
+          <span>&copy; 2026 Sellution 3D &bull; Maison of Clinical Cardiovascular Intelligence. All Rights Reserved.</span>
           <span>Paris &bull; Cleveland &bull; Rochester &bull; Geneva</span>
         </div>
       </footer>

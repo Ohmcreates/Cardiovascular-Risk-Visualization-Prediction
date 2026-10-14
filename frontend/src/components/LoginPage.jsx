@@ -284,7 +284,7 @@ export default function LoginPage({
           <div>
             <div className="flex items-center gap-2">
               <span className="font-black text-xl tracking-tight">
-                CardioVision <span className="text-blue-500 font-extrabold">3D</span>
+                Sellution <span className="text-blue-500 font-extrabold">3D</span>
               </span>
               <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border ${
                 isPatient 
@@ -311,9 +311,9 @@ export default function LoginPage({
                   ? 'bg-[#C5A880]/10 border-[#C5A880]/30 text-[#C5A880] hover:bg-[#C5A880]/20 hover:border-[#C5A880]'
                   : 'bg-[#C5A880]/15 border-[#C5A880]/40 text-[#6B5328] hover:bg-[#C5A880]/25'
               }`}
-              title="Return to the Maison Editorial Experience"
+              title="Return to the Sellution Maison Experience"
             >
-              <span>← Maison</span>
+              <span>← Sellution Maison</span>
             </button>
           )}
 
@@ -702,7 +702,7 @@ export default function LoginPage({
 
       {/* 3. FOOTER */}
       <footer className="p-4 sm:px-8 text-center text-xs opacity-60 z-20 relative">
-        <span>CardioVision 3D &bull; Version 2.0.0 &bull; Secure Clinical Diagnostic Interface &bull; Cleveland Heart Dataset</span>
+        <span>Sellution 3D &bull; Version 2.0.0 &bull; Secure Clinical Diagnostic Interface &bull; Cleveland Heart Dataset</span>
       </footer>
     </div>
   );
