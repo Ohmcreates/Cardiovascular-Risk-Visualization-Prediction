@@ -116,16 +116,16 @@ const ModelEvaluationModal = ({ isOpen, onClose }) => {
                         Object.values(metrics.models_compared).map((m, idx) => (
                           <tr key={idx} className="hover:bg-slate-800/30 transition">
                             <td className="py-3 px-4 font-sans font-semibold text-white">
-                              {m.model_name}
+                              {m?.model_name || 'Model'}
                             </td>
                             <td className="py-3 px-4 text-emerald-400 font-bold">
-                              {(m.accuracy * 100).toFixed(1)}%
+                              {(((m?.accuracy ?? 0) * 100)).toFixed(1)}%
                             </td>
-                            <td className="py-3 px-4 text-sky-400 font-bold">{m.roc_auc.toFixed(4)}</td>
-                            <td className="py-3 px-4 text-slate-200">{m.f1_score.toFixed(4)}</td>
-                            <td className="py-3 px-4 text-slate-300">{(m.recall * 100).toFixed(1)}%</td>
-                            <td className="py-3 px-4 text-slate-300">{(m.specificity * 100).toFixed(1)}%</td>
-                            <td className="py-3 px-4 text-slate-300">{(m.precision * 100).toFixed(1)}%</td>
+                            <td className="py-3 px-4 text-sky-400 font-bold">{(m?.roc_auc ?? 0).toFixed(4)}</td>
+                            <td className="py-3 px-4 text-slate-200">{(m?.f1_score ?? 0).toFixed(4)}</td>
+                            <td className="py-3 px-4 text-slate-300">{(((m?.recall ?? 0) * 100)).toFixed(1)}%</td>
+                            <td className="py-3 px-4 text-slate-300">{(((m?.specificity ?? 0) * 100)).toFixed(1)}%</td>
+                            <td className="py-3 px-4 text-slate-300">{(((m?.precision ?? 0) * 100)).toFixed(1)}%</td>
                           </tr>
                         ))}
                     </tbody>
@@ -177,8 +177,8 @@ const ModelEvaluationModal = ({ isOpen, onClose }) => {
                     <div className="space-y-1.5 overflow-y-auto max-h-[140px] text-xs">
                       {metrics.selected_model.feature_importance?.slice(0, 5).map((f, i) => (
                         <div key={i} className="flex justify-between items-center py-1 border-b border-slate-850">
-                          <span className="text-slate-300 truncate max-w-[200px]">{f.feature}</span>
-                          <span className="font-mono text-slate-400">{f.weight.toFixed(4)}</span>
+                          <span className="text-slate-300 truncate max-w-[200px]">{f?.feature || 'Feature'}</span>
+                          <span className="font-mono text-slate-400">{(f?.weight ?? 0).toFixed(4)}</span>
                         </div>
                       ))}
                     </div>

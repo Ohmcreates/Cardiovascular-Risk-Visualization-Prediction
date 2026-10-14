@@ -160,37 +160,46 @@ export default function SellutionDashboard({
 
   // Synchronize with persistent SQLite / PostgreSQL backend
   useEffect(() => {
+    const safeJson = async (res) => {
+      if (!res.ok) return null;
+      try {
+        return await res.json();
+      } catch {
+        return null;
+      }
+    };
+
     // 1. Fetch 12 diagnostic reports
     fetch('/api/reports')
-      .then(res => res.json())
+      .then(safeJson)
       .then(data => {
-        if (data.reports) setDbReports(data.reports);
+        if (data?.reports) setDbReports(data.reports);
       })
-      .catch(console.error);
+      .catch(() => {});
 
     // 2. Fetch medications for active patient
     fetch(`/api/patients/${patientId}/medications`)
-      .then(res => res.json())
+      .then(safeJson)
       .then(data => {
-        if (data.medications) setDbMedications(data.medications);
+        if (data?.medications) setDbMedications(data.medications);
       })
-      .catch(console.error);
+      .catch(() => {});
 
     // 3. Fetch labs for active patient
     fetch(`/api/patients/${patientId}/labs`)
-      .then(res => res.json())
+      .then(safeJson)
       .then(data => {
-        if (data.labs) setDbLabs(data.labs);
+        if (data?.labs) setDbLabs(data.labs);
       })
-      .catch(console.error);
+      .catch(() => {});
 
     // 4. Fetch vitals history for active patient
     fetch(`/api/patients/${patientId}/vitals?limit=15`)
-      .then(res => res.json())
+      .then(safeJson)
       .then(data => {
-        if (data.vitals) setDbVitalsHistory(data.vitals);
+        if (data?.vitals) setDbVitalsHistory(data.vitals);
       })
-      .catch(console.error);
+      .catch(() => {});
   }, [patientId]);
 
   const handleSaveVitalsToDB = async () => {
@@ -200,11 +209,11 @@ export default function SellutionDashboard({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          systolic_bp: Math.round(fd.trestbps ?? 140),
-          diastolic_bp: Math.round(80 + ((fd.trestbps ?? 140) - 120) * 0.25),
-          heart_rate: Math.round(fd.thalach ?? 142),
-          cholesterol: Math.round(fd.chol ?? 260),
-          st_depression: Number(Number(fd.oldpeak ?? 2.2).toFixed(1)),
+          systolic_bp: Math.round(Number(fd?.trestbps ?? 140)),
+          diastolic_bp: Math.round(80 + (Number(fd?.trestbps ?? 140) - 120) * 0.25),
+          heart_rate: Math.round(Number(fd?.thalach ?? 142)),
+          cholesterol: Math.round(Number(fd?.chol ?? 260)),
+          st_depression: Number(Number(fd?.oldpeak ?? 2.2).toFixed(1)),
           oxygen_saturation: 98.0,
           respiratory_rate: 16,
           notes: 'Ambulatory vital recorded via Clinical Difference Engine'
@@ -464,10 +473,10 @@ export default function SellutionDashboard({
 
   // Quantitative Deltas (Current Simulated vs Baseline)
   const deltaRisk = prob - baselineProb;
-  const deltaBP = Math.round((fd.trestbps ?? 140) - (baselineData.trestbps ?? 140));
-  const deltaChol = Math.round((fd.chol ?? 260) - (baselineData.chol ?? 260));
-  const deltaHR = Math.round((fd.thalach ?? 142) - (baselineData.thalach ?? 142));
-  const deltaST = Number(((fd.oldpeak ?? 2.2) - (baselineData.oldpeak ?? 2.2)).toFixed(1));
+  const deltaBP = Math.round((Number(fd?.trestbps ?? 140)) - (Number(baselineData?.trestbps ?? 140)));
+  const deltaChol = Math.round((Number(fd?.chol ?? 260)) - (Number(baselineData?.chol ?? 260)));
+  const deltaHR = Math.round((Number(fd?.thalach ?? 142)) - (Number(baselineData?.thalach ?? 142)));
+  const deltaST = Number(((Number(fd?.oldpeak ?? 2.2)) - (Number(baselineData?.oldpeak ?? 2.2))).toFixed(1));
 
   const handleResetBaseline = () => {
     onChangeFormData({ ...baselineData });

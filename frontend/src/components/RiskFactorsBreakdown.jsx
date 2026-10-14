@@ -19,32 +19,43 @@ const RiskFactorsBreakdown = ({ result }) => {
         </p>
 
         <div className="space-y-2.5 flex-1 overflow-y-auto">
-          {clinical_observations.map((item, idx) => {
-            const isWarning = item.level === 'warning';
-            const isCaution = item.level === 'caution';
-            return (
-              <div
-                key={idx}
-                className={`p-3 rounded-xl border flex items-center justify-between text-xs ${
-                  isWarning
-                    ? 'bg-rose-950/20 border-rose-900/40 text-rose-200'
-                    : isCaution
-                    ? 'bg-amber-950/20 border-amber-900/40 text-amber-200'
-                    : 'bg-slate-950 border-slate-800 text-slate-300'
-                }`}
-              >
-                <div>
-                  <div className="font-semibold text-white">{item.factor}</div>
-                  <div className="text-[11px] opacity-80 mt-0.5">{item.status}</div>
+          {clinical_observations.length === 0 ? (
+            <p className="text-xs text-slate-500 italic p-3">Standard clinical thresholds within monitored ranges.</p>
+          ) : (
+            clinical_observations.map((item, idx) => {
+              const isObj = typeof item === 'object' && item !== null;
+              const factorName = isObj ? (item.factor || item.name || 'Biomarker') : String(item);
+              const statusText = isObj ? (item.status || '') : '';
+              const valText = isObj ? (item.value !== undefined ? String(item.value) : '') : '';
+              const isWarning = isObj && (item.level === 'warning' || item.level === 'danger');
+              const isCaution = isObj && (item.level === 'caution' || item.level === 'elevated');
+
+              return (
+                <div
+                  key={idx}
+                  className={`p-3 rounded-xl border flex items-center justify-between text-xs ${
+                    isWarning
+                      ? 'bg-rose-950/20 border-rose-900/40 text-rose-200'
+                      : isCaution
+                      ? 'bg-amber-950/20 border-amber-900/40 text-amber-200'
+                      : 'bg-slate-950 border-slate-800 text-slate-300'
+                  }`}
+                >
+                  <div>
+                    <div className="font-semibold text-white">{factorName}</div>
+                    {statusText && <div className="text-[11px] opacity-80 mt-0.5">{statusText}</div>}
+                  </div>
+                  {valText && (
+                    <div className="text-right">
+                      <span className="font-mono font-bold px-2 py-1 rounded bg-slate-900/80 border border-slate-700/50">
+                        {valText}
+                      </span>
+                    </div>
+                  )}
                 </div>
-                <div className="text-right">
-                  <span className="font-mono font-bold px-2 py-1 rounded bg-slate-900/80 border border-slate-700/50">
-                    {item.value}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
       </div>
 
@@ -63,21 +74,25 @@ const RiskFactorsBreakdown = ({ result }) => {
             <p className="text-xs text-slate-500 italic">No feature attribution available for this model type.</p>
           ) : (
             feature_attributions.map((attr, idx) => {
-              const isPositive = attr.log_odds_contribution > 0;
-              const contributionAbs = Math.abs(attr.log_odds_contribution);
+              const rawVal = attr?.log_odds_contribution ?? attr?.contribution ?? attr?.weight ?? 0;
+              const val = typeof rawVal === 'number' && !isNaN(rawVal) ? rawVal : Number(rawVal) || 0;
+              const isPositive = val > 0;
+              const contributionAbs = Math.abs(val);
               // Max scale ~ 2.5
               const barWidth = Math.min(100, Math.round((contributionAbs / 2.2) * 100));
+              const displayName = attr?.display_name || attr?.feature || attr?.name || 'Biomarker';
+              const impactText = attr?.impact || (isPositive ? 'Increases Risk' : 'Protective');
 
               return (
                 <div key={idx} className="bg-slate-950 p-2.5 rounded-xl border border-slate-800/80">
                   <div className="flex items-center justify-between text-xs mb-1">
-                    <span className="font-medium text-slate-200">{attr.display_name}</span>
+                    <span className="font-medium text-slate-200">{displayName}</span>
                     <div className="flex items-center gap-1.5 font-mono text-[11px]">
                       <span className={isPositive ? 'text-rose-400' : 'text-emerald-400'}>
-                        {isPositive ? '+' : ''}{attr.log_odds_contribution.toFixed(3)}
+                        {isPositive ? '+' : ''}{val.toFixed(3)}
                       </span>
                       <span className="text-[10px] text-slate-500 uppercase">
-                        ({attr.impact})
+                        ({impactText})
                       </span>
                     </div>
                   </div>

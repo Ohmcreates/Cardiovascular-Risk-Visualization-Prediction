@@ -105,7 +105,7 @@ const PredictionResultCard = ({ result, isLoading }) => {
         <div className="flex items-center justify-between mt-2 text-[11px] text-slate-400">
           <span>Confidence Margin from 0.5 Threshold:</span>
           <span className="font-mono font-bold text-slate-200">
-            {(confidence_margin * 100).toFixed(1)}% Certainty
+            {(((confidence_margin ?? 0) * 100)).toFixed(1)}% Certainty
           </span>
         </div>
       </div>

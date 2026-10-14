@@ -179,20 +179,79 @@ function App() {
 
       const fallbackResult = {
         probability: Number(proba.toFixed(4)),
+        probability_percentage: Number((proba * 100).toFixed(1)),
         prediction: isHigh ? 1 : 0,
+        predicted_class: isHigh ? 1 : 0,
+        prediction_label: isHigh 
+          ? 'Presence of Heart Disease Detected (≥50% diameter narrowing)' 
+          : 'Absence of Significant Heart Disease (<50% diameter narrowing)',
         risk_category: proba >= 0.75 ? 'High Estimated Probability' : proba >= 0.5 ? 'Elevated Probability' : proba >= 0.25 ? 'Borderline / Intermediate Probability' : 'Low Estimated Probability',
         risk_color: proba >= 0.75 ? '#EF4444' : proba >= 0.5 ? '#F97316' : proba >= 0.25 ? '#F59E0B' : '#10B981',
         confidence_margin: Number(Math.abs(proba - 0.5).toFixed(4)),
         feature_attributions: [
-          { feature: 'ca (Fluoroscopy vessels)', contribution: Number(((d.ca || 0) * 1.20).toFixed(4)), direction: (d.ca || 0) > 0 ? 'increases_risk' : 'protective' },
-          { feature: 'oldpeak (ST depression)', contribution: Number(((d.oldpeak || 0) * 0.58).toFixed(4)), direction: (d.oldpeak || 0) > 1.0 ? 'increases_risk' : 'protective' },
-          { feature: 'thal (Thallium defect)', contribution: Number((d.thal === 7 ? 0.85 : -0.3).toFixed(4)), direction: d.thal === 7 ? 'increases_risk' : 'protective' },
-          { feature: 'cp (Chest pain type)', contribution: Number((d.cp === 4 ? 0.76 : -0.2).toFixed(4)), direction: d.cp === 4 ? 'increases_risk' : 'protective' }
+          { 
+            raw_feature: 'ca', 
+            display_name: 'Fluoroscopy Vessels (ca)', 
+            log_odds_contribution: Number(((Number(d.ca) || 0) * 1.20).toFixed(4)), 
+            contribution: Number(((Number(d.ca) || 0) * 1.20).toFixed(4)), 
+            impact: (Number(d.ca) || 0) > 0 ? 'Increases Risk' : 'Protective', 
+            direction: (Number(d.ca) || 0) > 0 ? 'increases_risk' : 'protective' 
+          },
+          { 
+            raw_feature: 'oldpeak', 
+            display_name: 'ST Depression (Exercise)', 
+            log_odds_contribution: Number(((Number(d.oldpeak) || 0) * 0.58).toFixed(4)), 
+            contribution: Number(((Number(d.oldpeak) || 0) * 0.58).toFixed(4)), 
+            impact: (Number(d.oldpeak) || 0) > 1.0 ? 'Increases Risk' : 'Protective', 
+            direction: (Number(d.oldpeak) || 0) > 1.0 ? 'increases_risk' : 'protective' 
+          },
+          { 
+            raw_feature: 'thal', 
+            display_name: 'Thallium Perfusion Defect', 
+            log_odds_contribution: Number((Number(d.thal) === 7 ? 0.85 : -0.3).toFixed(4)), 
+            contribution: Number((Number(d.thal) === 7 ? 0.85 : -0.3).toFixed(4)), 
+            impact: Number(d.thal) === 7 ? 'Increases Risk' : 'Protective', 
+            direction: Number(d.thal) === 7 ? 'increases_risk' : 'protective' 
+          },
+          { 
+            raw_feature: 'cp', 
+            display_name: 'Chest Pain Type (Asymptomatic)', 
+            log_odds_contribution: Number((Number(d.cp) === 4 ? 0.76 : -0.2).toFixed(4)), 
+            contribution: Number((Number(d.cp) === 4 ? 0.76 : -0.2).toFixed(4)), 
+            impact: Number(d.cp) === 4 ? 'Increases Risk' : 'Protective', 
+            direction: Number(d.cp) === 4 ? 'increases_risk' : 'protective' 
+          }
         ],
         clinical_flags: [
-          ...(d.oldpeak >= 2.0 ? ['Severe exertional ST segment depression (≥2.0mm)'] : []),
-          ...(d.ca >= 2 ? ['Multi-vessel fluoroscopic calcification (≥2 vessels)'] : []),
-          ...(d.thal === 7 ? ['Reversible myocardial perfusion defect on Thallium-201 scan'] : [])
+          ...(Number(d.oldpeak) >= 2.0 ? ['Severe exertional ST segment depression (≥2.0mm)'] : []),
+          ...(Number(d.ca) >= 2 ? ['Multi-vessel fluoroscopic calcification (≥2 vessels)'] : []),
+          ...(Number(d.thal) === 7 ? ['Reversible myocardial perfusion defect on Thallium-201 scan'] : [])
+        ],
+        clinical_observations: [
+          {
+            factor: 'ST-Segment Depression',
+            status: Number(d.oldpeak) >= 2.0 ? 'Marked Subendocardial Ischemia' : Number(d.oldpeak) >= 1.0 ? 'Borderline Ischemia' : 'Normal Repolarization',
+            value: `${Number(d.oldpeak || 0).toFixed(1)} mm`,
+            level: Number(d.oldpeak) >= 2.0 ? 'warning' : Number(d.oldpeak) >= 1.0 ? 'caution' : 'normal'
+          },
+          {
+            factor: 'Fluoroscopy Vessels (ca)',
+            status: Number(d.ca) >= 2 ? 'Multi-vessel Calcified Atheroma' : Number(d.ca) === 1 ? 'Single-vessel Disease' : 'Zero Calcification',
+            value: `${Number(d.ca) || 0} vessels`,
+            level: Number(d.ca) >= 2 ? 'warning' : Number(d.ca) === 1 ? 'caution' : 'normal'
+          },
+          {
+            factor: 'Thallium Nuclear Scintigraphy',
+            status: Number(d.thal) === 7 ? 'Reversible Ischemic Defect' : Number(d.thal) === 6 ? 'Fixed Necrotic Scar' : 'Normal Homogeneous Perfusion',
+            value: Number(d.thal) === 7 ? 'Reversible (7)' : Number(d.thal) === 6 ? 'Fixed (6)' : 'Normal (3)',
+            level: Number(d.thal) === 7 ? 'warning' : Number(d.thal) === 6 ? 'caution' : 'normal'
+          },
+          {
+            factor: 'Resting Blood Pressure',
+            status: Number(d.trestbps) >= 140 ? 'Stage 2 Hypertension' : Number(d.trestbps) >= 130 ? 'Stage 1 Hypertension' : 'Normotensive',
+            value: `${Number(d.trestbps) || 120} mmHg`,
+            level: Number(d.trestbps) >= 140 ? 'warning' : Number(d.trestbps) >= 130 ? 'caution' : 'normal'
+          }
         ]
       };
       setPredictionResult(fallbackResult);
