@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  cardiovision:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cardiovision-app
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - ENVIRONMENT=production
+      - DATABASE_URL=sqlite:////app/backend/data/cardiovision.db
+      - PYTHONUNBUFFERED=1
+    volumes:
+      # Persist SQLite EHR clinical database across container restarts
+      - cardiovision-data:/app/backend/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  cardiovision-data:
+    driver: local

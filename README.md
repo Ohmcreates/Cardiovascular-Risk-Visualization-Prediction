@@ -142,7 +142,41 @@ python -m uvicorn backend.src.main:app --host 0.0.0.0 --port 8000
 
 ---
 
-## 4. API Endpoints Reference
+## 4. Multi-Tier User Journey
+
+CardioVision 3D implements a 3-stage user journey:
+
+```mermaid
+flowchart LR
+    A["Stage 1: Maison Landing Page<br/>(Haute-Couture Editorial Experience)"] -->|"Explore & Enter"| B["Stage 2: Authentication Portal<br/>(Clinical Lab vs. Patient Sanctuary)"]
+    B -->|"← Return to Maison"| A
+    B -->|"1-Click Sign-In or Credentials"| C["Stage 3: Sellution Clinical Workspace<br/>(Living 3D Digital Twin & Full EHR Cockpit)"]
+    C -->|"User Menu -> Maison View or Sign Out"| A
+```
+
+### Visual Walkthrough
+
+| Stage 1: Maison Landing Page | Stage 2: Dual Authentication Portal |
+| :---: | :---: |
+| ![Maison Landing Page](docs/screenshots/maison_landing_page_hero.png) | ![Login Portal](docs/screenshots/maison_to_login_transition.png) |
+
+| Stage 3: Clinical AI Workspace | Stage 3: EHR Patient Registry |
+| :---: | :---: |
+| ![Clinical Dashboard](docs/screenshots/maison_to_main_app_transition.png) | ![Patient Registry](docs/screenshots/clinical_patient_registry_tab.png) |
+
+---
+
+## 5. Production Database & Clinical Intelligence Engine
+
+The platform is backed by a production SQLite database with full SQLAlchemy ORM persistence:
+- **Models**: `PatientModel`, `AssessmentRecordModel`, `VitalLogModel`, `MedicationModel`, `LabResultModel`, `ClinicalReportModel`, `AuditLogModel`, `UserModel`.
+- **Pre-seeded Cohorts**: 8 patient profiles spanning diverse demographics and cardiovascular etiologies (David Berg, Eleanor Turner, Marcus Vance, Sophia Chen, Dr. Sarah Scott, etc.).
+- **HIPAA-Compliant Audit Logging**: Automatic logging of clinical assessments, report filings, and patient registrations.
+- **Pathology Differentiator**: Real-time side-by-side visualization between healthy pink myocardium and necrotic ischemic apical tissue (black area) corresponding to exercise-induced ST depression and fluoroscopy vessel blockage.
+
+---
+
+## 6. Complete API Endpoints Reference
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
@@ -150,10 +184,34 @@ python -m uvicorn backend.src.main:app --host 0.0.0.0 --port 8000
 | `GET` | `/api/model-info` | Real training metrics, confusion matrix, ROC-AUC, limitations |
 | `GET` | `/api/sample-patients` | Pre-calibrated demonstration patient profiles |
 | `POST` | `/api/predict` | Validates 13 clinical inputs, runs inference, returns probability, risk category, confidence margin, log-odds feature attributions, and clinical flags |
+| `POST` | `/api/auth/login` | Dual-portal authentication (Clinician / Patient) with JWT token |
+| `POST` | `/api/auth/logout` | Session invalidation and audit logging |
+| `GET` | `/api/auth/demo-users` | Retrieve verified 1-click clinical & patient personas |
+| `GET` | `/api/patients` | Retrieve all registered clinical patients in the database |
+| `POST` | `/api/patients/register` | Register new patient with baseline demographic and clinical metrics |
+| `GET` | `/api/patients/{id}/dossier` | Retrieve complete longitudinal dossier (vitals, meds, labs, reports) |
+| `POST` | `/api/clinical-reports` | File and digitally sign formal cardiovascular diagnostic report |
+| `GET` | `/api/audit-logs` | Retrieve HIPAA clinical compliance audit trail |
+| `GET` | `/api/export/{id}` | Export complete longitudinal medical dossier in JSON format |
 
 ---
 
-## 5. Regulatory & Clinical Boundary Disclaimers
+## 7. Verification & Automated Test Suite
+
+Run the full automated test suite (22 unit, integration, and database tests):
+```bash
+python -m pytest backend/tests -v
+```
+All **22/22 tests passing**:
+- `test_api.py` (5 tests): Health endpoints, prediction inference, input validation, feature attributions.
+- `test_auth.py` (5 tests): Clinician login, patient login, invalid credentials, demo personas.
+- `test_dataset.py` (3 tests): UCI pipeline, feature schema validation, split stratification.
+- `test_predict.py` (2 tests): Inference bounds, model loading.
+- `test_production_db.py` (7 tests): Patient registry, vitals logging, medication management, report generation, audit trail.
+
+---
+
+## 8. Regulatory & Clinical Boundary Disclaimers
 
 > [!IMPORTANT]
 > - **Empirical Scope**: CardioVision 3D classifies the statistical likelihood of existing angiographic coronary heart disease ($\ge 50\%$ vessel stenosis) within the historical Cleveland Clinic study cohort.

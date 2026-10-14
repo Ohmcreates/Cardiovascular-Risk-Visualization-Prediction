@@ -3,9 +3,14 @@ CardioVision 3D - UCI Heart Disease Dataset Acquisition & Preprocessing Pipeline
 """
 import os
 import urllib.request
+from pathlib import Path
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+DEFAULT_RAW_PATH = str(BASE_DIR / "data" / "raw" / "processed.cleveland.data")
+DEFAULT_PROCESSED_DIR = str(BASE_DIR / "data" / "processed")
 
 UCI_CLEVELAND_URL = "https://archive.ics.uci.edu/ml/machine-learning-databases/heart-disease/processed.cleveland.data"
 
@@ -27,7 +32,7 @@ FEATURE_COLUMNS = [
 
 ALL_COLUMNS = FEATURE_COLUMNS + ["num"]
 
-def download_raw_data(output_path: str = "backend/data/raw/processed.cleveland.data") -> str:
+def download_raw_data(output_path: str = DEFAULT_RAW_PATH) -> str:
     """Download the official UCI Cleveland heart disease dataset."""
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     if not os.path.exists(output_path) or os.path.getsize(output_path) == 0:
@@ -42,7 +47,7 @@ def download_raw_data(output_path: str = "backend/data/raw/processed.cleveland.d
         print(f"Raw data already exists at {output_path}")
     return output_path
 
-def load_and_validate_data(raw_path: str = "backend/data/raw/processed.cleveland.data") -> pd.DataFrame:
+def load_and_validate_data(raw_path: str = DEFAULT_RAW_PATH) -> pd.DataFrame:
     """
     Load raw CSV data, replace missing sentinel '?' with NaN, validate schema,
     impute missing values appropriately, and create binary target (target = 1 if num > 0 else 0).
@@ -107,8 +112,8 @@ if __name__ == "__main__":
     X_tr, X_v, X_te, y_tr, y_v, y_te = prepare_splits(data)
     
     # Save processed splits
-    os.makedirs("backend/data/processed", exist_ok=True)
-    X_tr.assign(target=y_tr).to_csv("backend/data/processed/train.csv", index=False)
-    X_v.assign(target=y_v).to_csv("backend/data/processed/val.csv", index=False)
-    X_te.assign(target=y_te).to_csv("backend/data/processed/test.csv", index=False)
-    print("Saved train.csv, val.csv, and test.csv to backend/data/processed/")
+    os.makedirs(DEFAULT_PROCESSED_DIR, exist_ok=True)
+    X_tr.assign(target=y_tr).to_csv(os.path.join(DEFAULT_PROCESSED_DIR, "train.csv"), index=False)
+    X_v.assign(target=y_v).to_csv(os.path.join(DEFAULT_PROCESSED_DIR, "val.csv"), index=False)
+    X_te.assign(target=y_te).to_csv(os.path.join(DEFAULT_PROCESSED_DIR, "test.csv"), index=False)
+    print(f"Saved train.csv, val.csv, and test.csv to {DEFAULT_PROCESSED_DIR}")

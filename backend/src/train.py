@@ -80,10 +80,16 @@ def evaluate_model(name, model, X_test_trans, y_test):
         "classification_report": report
     }
 
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+MODELS_DIR = BASE_DIR / "models"
+PROCESSED_DIR = BASE_DIR / "data" / "processed"
+
 def train_and_compare():
-    train_df = pd.read_csv("backend/data/processed/train.csv")
-    val_df = pd.read_csv("backend/data/processed/val.csv")
-    test_df = pd.read_csv("backend/data/processed/test.csv")
+    train_df = pd.read_csv(PROCESSED_DIR / "train.csv")
+    val_df = pd.read_csv(PROCESSED_DIR / "val.csv")
+    test_df = pd.read_csv(PROCESSED_DIR / "test.csv")
     
     # Features & Targets
     from dataset import FEATURE_COLUMNS
@@ -173,10 +179,10 @@ def train_and_compare():
         feature_importance = []
         
     # Save artifacts
-    os.makedirs("backend/models", exist_ok=True)
-    joblib.dump(final_model, "backend/models/model.joblib")
-    joblib.dump(final_preprocessor, "backend/models/pipeline.joblib")
-    print("Saved model.joblib and pipeline.joblib to backend/models/")
+    os.makedirs(MODELS_DIR, exist_ok=True)
+    joblib.dump(final_model, MODELS_DIR / "model.joblib")
+    joblib.dump(final_preprocessor, MODELS_DIR / "pipeline.joblib")
+    print(f"Saved model.joblib and pipeline.joblib to {MODELS_DIR}")
     
     # Save metrics JSON
     metrics_data = {
@@ -205,9 +211,9 @@ def train_and_compare():
         ]
     }
     
-    with open("backend/models/metrics.json", "w", encoding="utf-8") as f:
+    with open(MODELS_DIR / "metrics.json", "w", encoding="utf-8") as f:
         json.dump(metrics_data, f, indent=2)
-    print("Saved backend/models/metrics.json")
+    print(f"Saved {MODELS_DIR / 'metrics.json'}")
     
     # Save markdown evaluation report
     report_md = f"""# CardioVision 3D - Empirical Model Evaluation Report
@@ -250,9 +256,9 @@ def train_and_compare():
 > - **It does not detect or image coronary blockages in 3D.** The 3D anatomical viewer provides pedagogical anatomical reference only.
 > - Not cleared by FDA/EMA for standalone diagnostic use.
 """
-    with open("backend/models/evaluation_report.md", "w", encoding="utf-8") as f:
+    with open(MODELS_DIR / "evaluation_report.md", "w", encoding="utf-8") as f:
         f.write(report_md)
-    print("Saved backend/models/evaluation_report.md")
+    print(f"Saved {MODELS_DIR / 'evaluation_report.md'}")
 
 if __name__ == "__main__":
     train_and_compare()

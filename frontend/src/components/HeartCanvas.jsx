@@ -73,10 +73,24 @@ export const ANATOMICAL_PARTS = {
     category: 'Great Vessel',
     description: 'Large venous channel draining deoxygenated blood from the upper extremities, neck, and head directly into the anterosuperior right atrium.',
     clinicalSignificance: 'Monitored clinically for central venous catheterization and venous pressure measurement.'
+  },
+  infarct: {
+    id: 'infarct',
+    name: 'Ischemic Infarction Territory (Black Defect Zone)',
+    category: 'Myocardial Pathology',
+    description: 'Dark / black hypoperfused myocardial territory resulting from critical stenosis in the upstream coronary artery (LAD). Corresponds to cold perfusion defect on Thallium scan and ST-segment depression.',
+    clinicalSignificance: 'Represents ischemic tissue with impaired contractility (hypokinesis) and potential non-viability. Rapid revascularization and medical therapy prevent transmural completion.'
+  },
+  plaque: {
+    id: 'plaque',
+    name: 'Coronary Atherosclerotic Plaque (Stenosis)',
+    category: 'Arterial Lesion',
+    description: 'Atheromatous plaque causing focal luminal narrowing in the Left Anterior Descending coronary artery. Impedes hemodynamic flow during peak myocardial metabolic demand.',
+    clinicalSignificance: 'Major driver of exertional angina (exang = 1) and inducible myocardial ischemia on exercise stress ECG.'
   }
 };
 
-const HeartCanvas = forwardRef(({ predictionData, onSelectPart, selectedPartId }, ref) => {
+const HeartCanvas = forwardRef(({ predictionData, onSelectPart, selectedPartId, theme = 'dark', hideControls = false, pathologyMode = 'auto' }, ref) => {
   const mountRef = useRef(null);
   const sceneRef = useRef(null);
   const cameraRef = useRef(null);
@@ -130,6 +144,20 @@ const HeartCanvas = forwardRef(({ predictionData, onSelectPart, selectedPartId }
 
   useImperativeHandle(ref, () => ({
     resetCamera: () => setCameraPreset('anterior'),
+    resetView: () => setCameraPreset('anterior'),
+    setCameraPreset: (preset) => setCameraPreset(preset),
+    zoomIn: () => {
+      if (cameraRef.current) {
+        cameraRef.current.position.multiplyScalar(0.85);
+        controlsRef.current?.update();
+      }
+    },
+    zoomOut: () => {
+      if (cameraRef.current) {
+        cameraRef.current.position.multiplyScalar(1.15);
+        controlsRef.current?.update();
+      }
+    },
     focusPart: (partId) => {
       const partMesh = meshMapRef.current.get(partId);
       if (partMesh && controlsRef.current) {
@@ -146,7 +174,11 @@ const HeartCanvas = forwardRef(({ predictionData, onSelectPart, selectedPartId }
     // SCENE SETUP
     const scene = new THREE.Scene();
     sceneRef.current = scene;
-    scene.background = new THREE.Color(0x090d16);
+    if (theme === 'light') {
+      scene.background = null; // transparent, blends with card background
+    } else {
+      scene.background = new THREE.Color(0x090d16);
+    }
 
     // CAMERA SETUP
     const width = container.clientWidth;
@@ -160,7 +192,7 @@ const HeartCanvas = forwardRef(({ predictionData, onSelectPart, selectedPartId }
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
     rendererRef.current = renderer;
     container.innerHTML = '';
     container.appendChild(renderer.domElement);
@@ -428,6 +460,40 @@ const HeartCanvas = forwardRef(({ predictionData, onSelectPart, selectedPartId }
     const gcvMesh = new THREE.Mesh(gcvGeo, cardiacVeinMaterial);
     heartGroup.add(gcvMesh);
 
+    // 9. ISCHEMIC NECROTIC TISSUE / INFARCT ZONE (Black defect zone on antero-apical LV)
+    const infarctGeo = new THREE.SphereGeometry(1.94, 32, 24, 0, Math.PI * 0.75, Math.PI * 0.35, Math.PI * 0.45);
+    infarctGeo.scale(1.01, 1.46, 0.96);
+    const infarctMaterial = new THREE.MeshStandardMaterial({
+      color: 0x090d16, // Stark black / charcoal necrotic ischemic tissue
+      roughness: 0.9,
+      metalness: 0.05,
+      emissive: 0x030712,
+      emissiveIntensity: 0.2
+    });
+    const infarctMesh = new THREE.Mesh(infarctGeo, infarctMaterial);
+    infarctMesh.position.set(-0.55, -1.2, 0.1);
+    infarctMesh.rotation.z = 0.2;
+    infarctMesh.rotation.y = -0.35;
+    infarctMesh.userData = { id: 'infarct' };
+    heartGroup.add(infarctMesh);
+    meshMapRef.current.set('infarct', infarctMesh);
+
+    // 10. CORONARY ATHEROSCLEROTIC PLAQUE / CALCIFICATION RING (Stenosis on LAD)
+    const plaqueGeo = new THREE.TorusGeometry(0.18, 0.065, 16, 24);
+    const plaqueMaterial = new THREE.MeshStandardMaterial({
+      color: 0xf59e0b, // Amber-gold calcified atheroma plaque
+      roughness: 0.25,
+      metalness: 0.45,
+      emissive: 0x78350f,
+      emissiveIntensity: 0.3
+    });
+    const plaqueMesh = new THREE.Mesh(plaqueGeo, plaqueMaterial);
+    plaqueMesh.position.set(0.0, -0.6, 1.15);
+    plaqueMesh.rotation.x = Math.PI * 0.45;
+    plaqueMesh.userData = { id: 'plaque' };
+    heartGroup.add(plaqueMesh);
+    meshMapRef.current.set('plaque', plaqueMesh);
+
     // RAYCASTING FOR INTERACTION
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
@@ -503,6 +569,12 @@ const HeartCanvas = forwardRef(({ predictionData, onSelectPart, selectedPartId }
         lvMesh.scale.set(1.0 * pulseScale, 1.45 * (2 - pulseScale * 0.95), 0.95 * pulseScale);
         rvMesh.scale.set(0.9 * pulseScale, 1.25 * (2 - pulseScale * 0.95), 0.75 * pulseScale);
 
+        // Black ischemic territory exhibits ischemic hypokinesis (diminished sluggish wall motion)
+        if (infarctMesh) {
+          const hypokineticScale = 1.0 + systolicFactor * 0.012;
+          infarctMesh.scale.set(1.01 * hypokineticScale, 1.46 * (2 - hypokineticScale * 0.95), 0.96 * hypokineticScale);
+        }
+
         // Atria expand slightly during ventricular systole (reciprocal filling)
         const atrialFactor = 1.0 + (1.0 - systolicFactor) * 0.025;
         laMesh.scale.set(1.1 * atrialFactor, 0.9 * atrialFactor, 0.95 * atrialFactor);
@@ -574,68 +646,129 @@ const HeartCanvas = forwardRef(({ predictionData, onSelectPart, selectedPartId }
         }
       }
     });
-  }, [selectedPartId, hoveredPart, overlayMode, predictionData]);
+
+    // Dynamic Pathology / Disease State Transformation:
+    const isDiseased = pathologyMode === 'diseased' 
+      ? true 
+      : pathologyMode === 'normal' 
+      ? false 
+      : ((predictionData?.probability ?? 0.78) >= 0.50 || (predictionData?.oldpeak ?? 0) >= 1.0 || (predictionData?.ca ?? 0) > 0);
+
+    // Infarct black defect mesh
+    const infarctMesh = meshMapRef.current.get('infarct');
+    if (infarctMesh) {
+      infarctMesh.visible = isDiseased;
+      if (selectedPartId === 'infarct') {
+        infarctMesh.material.emissive.setHex(0x38bdf8);
+        infarctMesh.material.emissiveIntensity = 0.5;
+      } else {
+        infarctMesh.material.emissive.setHex(0x050505);
+        infarctMesh.material.emissiveIntensity = 0.2;
+      }
+    }
+
+    // Atherosclerotic plaque blockage
+    const plaqueMesh = meshMapRef.current.get('plaque');
+    if (plaqueMesh) {
+      plaqueMesh.visible = isDiseased;
+      if (selectedPartId === 'plaque') {
+        plaqueMesh.material.emissive.setHex(0x38bdf8);
+        plaqueMesh.material.emissiveIntensity = 0.6;
+      } else {
+        plaqueMesh.material.emissive.setHex(0x78350f);
+        plaqueMesh.material.emissiveIntensity = 0.3;
+      }
+    }
+
+    // Left Ventricle color shift: Normal vascular pink vs Strained ischemic myocardium
+    const lvMesh = meshMapRef.current.get('lv');
+    if (lvMesh) {
+      if (isDiseased) {
+        lvMesh.material.color.setHex(0x6b1d1d); // Strained ischemic myocardium
+      } else {
+        lvMesh.material.color.setHex(0x9b1c1c); // Healthy pink/crimson
+      }
+    }
+
+    // LAD coronary artery lumen: Patent bright red vs Stenotic darkened
+    const ladMesh = meshMapRef.current.get('lad');
+    if (ladMesh) {
+      if (isDiseased) {
+        ladMesh.material.color.setHex(0x7f1d1d); // Darkened stenotic lumen
+      } else {
+        ladMesh.material.color.setHex(0xff3b30); // Bright patent red
+      }
+    }
+  }, [selectedPartId, hoveredPart, overlayMode, predictionData, pathologyMode]);
+
+  const isLight = theme === 'light';
 
   return (
-    <div className="relative w-full h-full min-h-[480px] bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden shadow-2xl flex flex-col">
+    <div className={`relative w-full h-full min-h-[360px] ${
+      isLight 
+        ? 'bg-transparent' 
+        : 'bg-slate-950 border border-slate-800'
+    } rounded-2xl overflow-hidden flex flex-col`}>
       {/* 3D WebGL Canvas */}
       <div ref={mountRef} className="w-full flex-1 touch-none" />
 
       {/* Top Floating Control Bar */}
-      <div className="absolute top-4 left-4 right-4 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
-        {/* Anatomical Mode Switcher */}
-        <div className="flex items-center gap-1.5 p-1 bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-xl pointer-events-auto shadow-lg">
-          <button
-            onClick={() => setOverlayMode('anatomy')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1.5 ${
-              overlayMode === 'anatomy'
-                ? 'bg-blue-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Layers className="w-3.5 h-3.5" />
-            Anatomy View
-          </button>
-          <button
-            onClick={() => setOverlayMode('risk_territory')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1.5 ${
-              overlayMode === 'risk_territory'
-                ? 'bg-amber-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Activity className="w-3.5 h-3.5" />
-            Perfusion Association
-          </button>
-        </div>
-
-        {/* Camera Orientation Presets */}
-        <div className="flex items-center gap-1 p-1 bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-xl pointer-events-auto shadow-lg">
-          <span className="text-[10px] uppercase font-semibold text-slate-500 px-2 flex items-center gap-1">
-            <Compass className="w-3 h-3" /> View:
-          </span>
-          {['anterior', 'lateral', 'posterior', 'superior'].map((view) => (
+      {!hideControls && (
+        <div className="absolute top-4 left-4 right-4 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+          {/* Anatomical Mode Switcher */}
+          <div className="flex items-center gap-1.5 p-1 bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-xl pointer-events-auto shadow-lg">
             <button
-              key={view}
-              onClick={() => setCameraPreset(view)}
-              className={`px-2.5 py-1 rounded-md text-xs capitalize font-medium transition ${
-                activeView === view
-                  ? 'bg-slate-700 text-white font-semibold'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+              onClick={() => setOverlayMode('anatomy')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1.5 ${
+                overlayMode === 'anatomy'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              {view}
+              <Layers className="w-3.5 h-3.5" />
+              Anatomy View
             </button>
-          ))}
-          <button
-            onClick={() => setCameraPreset('anterior')}
-            title="Reset View"
-            className="p-1.5 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-md transition"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-          </button>
+            <button
+              onClick={() => setOverlayMode('risk_territory')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1.5 ${
+                overlayMode === 'risk_territory'
+                  ? 'bg-amber-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Activity className="w-3.5 h-3.5" />
+              Perfusion Association
+            </button>
+          </div>
+
+          {/* Camera Orientation Presets */}
+          <div className="flex items-center gap-1 p-1 bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-xl pointer-events-auto shadow-lg">
+            <span className="text-[10px] uppercase font-semibold text-slate-500 px-2 flex items-center gap-1">
+              <Compass className="w-3 h-3" /> View:
+            </span>
+            {['anterior', 'lateral', 'posterior', 'superior'].map((view) => (
+              <button
+                key={view}
+                onClick={() => setCameraPreset(view)}
+                className={`px-2.5 py-1 rounded-md text-xs capitalize font-medium transition ${
+                  activeView === view
+                    ? 'bg-slate-700 text-white font-semibold'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                }`}
+              >
+                {view}
+              </button>
+            ))}
+            <button
+              onClick={() => setCameraPreset('anterior')}
+              title="Reset View"
+              className="p-1.5 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-md transition"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Floating Hover/Tooltip Card */}
       {hoveredPart && (
@@ -654,29 +787,31 @@ const HeartCanvas = forwardRef(({ predictionData, onSelectPart, selectedPartId }
       )}
 
       {/* Bottom Bar: Heart Rate & Disclaimers */}
-      <div className="absolute bottom-3 left-4 right-4 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
-        {/* Pulsing Rate Indicator */}
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-xl pointer-events-auto shadow-md">
-          <div className={`w-2.5 h-2.5 rounded-full ${isPulsing ? 'bg-rose-500 animate-ping' : 'bg-slate-600'}`} />
-          <span className="text-xs font-mono font-medium text-slate-300">
-            {pulseRate} <span className="text-[10px] text-slate-500">BPM</span>
-          </span>
-          <button
-            onClick={() => setIsPulsing(!isPulsing)}
-            className="text-[11px] text-slate-400 hover:text-slate-200 underline ml-1"
-          >
-            {isPulsing ? 'Pause' : 'Pulse'}
-          </button>
-        </div>
+      {!hideControls && (
+        <div className="absolute bottom-3 left-4 right-4 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+          {/* Pulsing Rate Indicator */}
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-xl pointer-events-auto shadow-md">
+            <div className={`w-2.5 h-2.5 rounded-full ${isPulsing ? 'bg-rose-500 animate-ping' : 'bg-slate-600'}`} />
+            <span className="text-xs font-mono font-medium text-slate-300">
+              {pulseRate} <span className="text-[10px] text-slate-500">BPM</span>
+            </span>
+            <button
+              onClick={() => setIsPulsing(!isPulsing)}
+              className="text-[11px] text-slate-400 hover:text-slate-200 underline ml-1"
+            >
+              {isPulsing ? 'Pause' : 'Pulse'}
+            </button>
+          </div>
 
-        {/* Clinical Transparency Notice */}
-        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-950/40 border border-amber-800/40 text-amber-300/90 rounded-xl text-[11px] pointer-events-auto backdrop-blur-md">
-          <ShieldAlert className="w-3.5 h-3.5 shrink-0 text-amber-400" />
-          <span>
-            <strong>Clinical Boundary:</strong> 3D geometry is an educational reference. Statistical risk does not represent direct CT/angiographic visualization of arterial lesions.
-          </span>
+          {/* Clinical Transparency Notice */}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-950/40 border border-amber-800/40 text-amber-300/90 rounded-xl text-[11px] pointer-events-auto backdrop-blur-md">
+            <ShieldAlert className="w-3.5 h-3.5 shrink-0 text-amber-400" />
+            <span>
+              <strong>Clinical Boundary:</strong> 3D geometry is an educational reference. Statistical risk does not represent direct CT/angiographic visualization of arterial lesions.
+            </span>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 });

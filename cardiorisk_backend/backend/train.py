@@ -22,13 +22,12 @@ def candidates():
     return {
         "LogisticRegression": lambda: make_pipeline(StandardScaler(),
             LogisticRegression(C=0.3, max_iter=5000, class_weight="balanced")),
-        "RandomForest": lambda: RandomForestClassifier(n_estimators=400, min_samples_leaf=2,
-            class_weight="balanced", random_state=SEED, n_jobs=-1),
-        "XGBoost": lambda: XGBClassifier(n_estimators=250, max_depth=3, learning_rate=0.05,
-            subsample=0.8, colsample_bytree=0.7, eval_metric="logloss", random_state=SEED, n_jobs=4),
-        "LightGBM": lambda: LGBMClassifier(n_estimators=250, num_leaves=8, learning_rate=0.05,
-            subsample=0.8, subsample_freq=1, colsample_bytree=0.7, min_child_samples=8,
-            random_state=SEED, verbose=-1, n_jobs=4),
+        "RandomForest": lambda: RandomForestClassifier(n_estimators=400, max_depth=10,
+            min_samples_leaf=5, min_samples_split=10,
+            class_weight="balanced", random_state=SEED, n_jobs=1),
+        "XGBoost": lambda: XGBClassifier(n_estimators=150, max_depth=3, learning_rate=0.05,
+            subsample=0.8, colsample_bytree=0.7, reg_alpha=0.1, reg_lambda=1.5, min_child_weight=3,
+            eval_metric="logloss", random_state=SEED, n_jobs=1),
     }
 
 def metrics(y, p):
@@ -49,8 +48,11 @@ def main():
         for mname, mk in candidates().items():
             fold = []
             for tr, te in cv.split(X, y):
-                m = mk().fit(X.iloc[tr], y[tr])
-                fold.append(metrics(y[te], m.predict_proba(X.iloc[te])[:, 1]))
+                X_tr = np.ascontiguousarray(X.iloc[tr].values, dtype=np.float32)
+                y_tr = np.ascontiguousarray(y[tr], dtype=np.float32)
+                X_te = np.ascontiguousarray(X.iloc[te].values, dtype=np.float32)
+                m = mk().fit(X_tr, y_tr)
+                fold.append(metrics(y[te], m.predict_proba(X_te)[:, 1]))
             f = pd.DataFrame(fold)
             r = {"target": tname, "model": mname, **{k: f[k].mean() for k in f}, **{k + "_sd": f[k].std() for k in f}}
             rows.append(r)
@@ -60,9 +62,10 @@ def main():
     res = pd.DataFrame(rows); res.to_csv(OUT / "cv_results.csv", index=False)
 
     # Fit final models on all data, save weights
+    X_all = np.ascontiguousarray(X.values, dtype=np.float32)
     for tname, col in TARGETS.items():
-        y = encode_target(raw[col])
-        model = candidates()[best[tname]]().fit(X, y)
+        y = np.ascontiguousarray(encode_target(raw[col]), dtype=np.float32)
+        model = candidates()[best[tname]]().fit(X_all, y)
         joblib.dump({"model": model, "name": best[tname], "features": feats}, OUT / f"{tname}.joblib")
     summary = {t: res[(res.target == t) & (res.model == best[t])].iloc[0].to_dict() for t in TARGETS}
     json.dump({"best_models": best, "cv": "5-fold x3 repeated stratified", "summary": summary},

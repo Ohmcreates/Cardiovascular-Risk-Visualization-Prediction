@@ -1,67 +1,125 @@
 import React, { useState, useEffect, useRef } from 'react';
-import Navbar from './components/Navbar';
-import HeartCanvas, { ANATOMICAL_PARTS } from './components/HeartCanvas';
-import PatientForm from './components/PatientForm';
-import PredictionResultCard from './components/PredictionResultCard';
-import RiskFactorsBreakdown from './components/RiskFactorsBreakdown';
+import SidebarNav from './components/SidebarNav';
+import TopHeader from './components/TopHeader';
+import OverviewDashboard from './components/OverviewDashboard';
+import SellutionDashboard from './components/SellutionDashboard';
+import AIDiagnosticWorkspace from './components/AIDiagnosticWorkspace';
+import NewAssessmentPage from './components/NewAssessmentPage';
+import PatientHistoryView from './components/PatientHistoryView';
+import ModelPerformanceView from './components/ModelPerformanceView';
+import ClinicalReportsView from './components/ClinicalReportsView';
+import AppSettingsView from './components/AppSettingsView';
 import AnatomicalInfoModal from './components/AnatomicalInfoModal';
 import ModelEvaluationModal from './components/ModelEvaluationModal';
-import { Heart, Activity, AlertTriangle, Info, Sparkles, CheckCircle2, ChevronRight, BookOpen } from 'lucide-react';
+import LoginPage from './components/LoginPage';
+import MaisonLandingPage from './components/MaisonLandingPage';
+import { AlertTriangle } from 'lucide-react';
+
+const DEFAULT_PATIENT_DATA = {
+  age: 58.0,
+  sex: 1.0,
+  cp: 4.0,
+  trestbps: 140.0,
+  chol: 260.0,
+  fbs: 0.0,
+  restecg: 0.0,
+  thalach: 142.0,
+  exang: 1.0,
+  oldpeak: 2.2,
+  slope: 2.0,
+  ca: 1.0,
+  thal: 7.0
+};
 
 function App() {
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem('cardiovision_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [authToken, setAuthToken] = useState(() => localStorage.getItem('cardiovision_token') || null);
+  const [theme, setTheme] = useState(() => localStorage.getItem('cardiovision_theme') || 'dark');
+
+  // 3-Stage Navigation Flow: 'landing' (Maison) -> 'login' (Portal) -> 'app' (Main Dashboard)
+  const [viewFlow, setViewFlow] = useState(() => {
+    try {
+      const saved = localStorage.getItem('cardiovision_user');
+      return saved ? 'app' : 'landing';
+    } catch {
+      return 'landing';
+    }
+  });
+  const [initialPortal, setInitialPortal] = useState('clinical');
+
+  const [formData, setFormData] = useState(DEFAULT_PATIENT_DATA);
   const [predictionResult, setPredictionResult] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [samplePatients, setSamplePatients] = useState([]);
+  const [currentPatientMeta, setCurrentPatientMeta] = useState({
+    name: 'David Berg',
+    gender: 'Male',
+    age: 54,
+    id: 'patient-david-berg'
+  });
+
+  const [activeView, setActiveView] = useState('overview'); // overview, assessment, workspace, history, performance, reports, settings
+  const [environmentTheme, setEnvironmentTheme] = useState('dark');
+  const [activeSystem, setActiveSystem] = useState('cardiovascular');
+
   const [selectedPartId, setSelectedPartId] = useState(null);
   const [isEvaluationOpen, setIsEvaluationOpen] = useState(false);
   const [isBackendHealthy, setIsBackendHealthy] = useState(false);
-  const heartRef = useRef(null);
 
-  // Poll backend health and fetch sample patients on initial mount
-  useEffect(() => {
-    const checkHealth = () => {
-      fetch('/api/health')
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.status === 'healthy' && data.model_loaded) {
-            setIsBackendHealthy(true);
-          }
-        })
-        .catch(() => setIsBackendHealthy(false));
-    };
+  const handleToggleTheme = () => {
+    setTheme((prev) => {
+      const next = prev === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('cardiovision_theme', next);
+      setEnvironmentTheme(next);
+      return next;
+    });
+  };
 
-    checkHealth();
-    const interval = setInterval(checkHealth, 15000);
+  const handleLoginSuccess = (user, token) => {
+    setCurrentUser(user);
+    setAuthToken(token);
+    setViewFlow('app');
+    if (user.patient_id) {
+      const p = samplePatients.find((s) => s.id === user.patient_id || s.slug === 'david');
+      if (p) handleSelectSample(p);
+    }
+  };
 
-    // Fetch sample patients
-    fetch('/api/sample-patients')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.samples) {
-          setSamplePatients(data.samples);
-          // Auto-run first sample patient on launch for immediate demonstration
-          if (data.samples.length > 0) {
-            handleFormSubmit(data.samples[0].data);
-          }
-        }
-      })
-      .catch((err) => {
-        console.warn('Could not load sample patients:', err);
-      });
+  const handleLogout = () => {
+    if (authToken) {
+      fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${authToken}` }
+      }).catch(console.error);
+    }
+    localStorage.removeItem('cardiovision_user');
+    localStorage.removeItem('cardiovision_token');
+    setCurrentUser(null);
+    setAuthToken(null);
+    setViewFlow('landing');
+  };
 
-    return () => clearInterval(interval);
-  }, []);
-
-  const handleFormSubmit = async (formData) => {
+  const handleExecutePrediction = async (dataToPredict = formData, patientId = currentPatientMeta?.id) => {
     setIsLoading(true);
     setError(null);
 
     try {
+      const payload = {
+        ...dataToPredict,
+        patient_id: patientId || currentPatientMeta?.id || 'patient-david-berg'
+      };
       const response = await fetch('/api/predict', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       });
 
       if (!response.ok) {
@@ -79,120 +137,303 @@ function App() {
     }
   };
 
-  const handleSelectSample = (sample) => {
-    // Optional focus on corresponding anatomical area
+  // Poll backend health and fetch sample patients on initial mount
+  useEffect(() => {
+    const checkHealth = () => {
+      fetch('/api/health')
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.status === 'healthy' && data.model_loaded) {
+            setIsBackendHealthy(true);
+          }
+        })
+        .catch(() => setIsBackendHealthy(false));
+    };
+
+    checkHealth();
+    const interval = setInterval(checkHealth, 15000);
+
+    // Fetch sample patients from API
+    const loadPatients = () => {
+      fetch('/api/sample-patients')
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.samples && data.samples.length > 0) {
+            setSamplePatients(data.samples);
+            // Select currentUser's patient if patient portal, otherwise default to David Berg
+            const activeSample = (currentUser?.patient_id && data.samples.find(s => s.id === currentUser.patient_id))
+              || data.samples.find(s => s.slug === 'david' || s.id === 'patient-david-berg') 
+              || data.samples[0];
+            const patientName = (activeSample.name || activeSample.label || 'David Berg').replace('Sample Patient: ', '');
+            setCurrentPatientMeta({
+              name: patientName,
+              gender: activeSample.data.sex === 1 ? 'Male' : 'Female',
+              age: Math.round(activeSample.data.age),
+              id: activeSample.id
+            });
+            setFormData(activeSample.data);
+            handleExecutePrediction(activeSample.data, activeSample.id);
+          } else {
+            handleExecutePrediction(DEFAULT_PATIENT_DATA);
+          }
+        })
+        .catch((err) => {
+          console.warn('Could not load sample patients:', err);
+          handleExecutePrediction(DEFAULT_PATIENT_DATA);
+        });
+    };
+
+    loadPatients();
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // When switching to workspace view, switch to dark mode by default (Environment B)
+  const handleNavigateView = (viewId) => {
+    setActiveView(viewId);
+    if (viewId === 'workspace') {
+      setEnvironmentTheme('dark');
+    } else if (viewId === 'overview' && environmentTheme === 'dark') {
+      setEnvironmentTheme('light');
+    }
   };
 
+  const handleSelectSample = (sample) => {
+    setFormData(sample.data);
+    const patientName = (sample.name || sample.label || 'Patient').replace('Sample Patient: ', '');
+    setCurrentPatientMeta({
+      name: patientName,
+      gender: sample.data.sex === 1 ? 'Male' : 'Female',
+      age: Math.round(sample.data.age),
+      id: sample.id
+    });
+    handleExecutePrediction(sample.data);
+  };
+
+  const getViewTitle = () => {
+    switch (activeView) {
+      case 'overview': return 'Cardiovascular Overview Dashboard';
+      case 'assessment': return 'New Patient Assessment';
+      case 'workspace': return '3D Anatomy & AI Workspace';
+      case 'history': return 'Longitudinal Patient History';
+      case 'performance': return 'Model Performance & Evaluation';
+      case 'reports': return 'Clinical Diagnostic Report';
+      case 'settings': return 'System Settings & Units';
+      default: return 'CardioVision 3D';
+    }
+  };
+
+  // Multi-tier Flow Gate:
+  // Stage 1: Haute-couture Landing Page (inspired by mdebeauty.com Maison des Élites)
+  // Stage 2: Dual-role Humanized Authentication Portal (Clinical Lab vs. Patient Sanctuary)
+  // Stage 3: Authenticated Clinical Twin & AI Workspace (SellutionDashboard)
+  if (!currentUser) {
+    if (viewFlow === 'landing') {
+      return (
+        <MaisonLandingPage
+          theme={theme}
+          onNavigateToLogin={(portal = 'clinical') => {
+            setInitialPortal(portal);
+            setViewFlow('login');
+          }}
+        />
+      );
+    }
+    return (
+      <LoginPage 
+        initialPortal={initialPortal}
+        onNavigateToMaison={() => setViewFlow('landing')}
+        onLoginSuccess={handleLoginSuccess}
+        theme={theme}
+        onToggleTheme={handleToggleTheme}
+      />
+    );
+  }
+
+  const isLight = theme === 'light';
+
+  if (activeView === 'overview' || activeView === 'workspace') {
+    return (
+      <div className={`min-h-screen selection:bg-blue-500/20 selection:text-blue-900 transition-colors duration-300 ${
+        theme === 'dark' ? 'bg-[#080C15] text-slate-100' : 'bg-[#F4F6F9] text-slate-800'
+      }`}>
+        <SellutionDashboard
+          theme={theme}
+          onToggleTheme={handleToggleTheme}
+          currentUser={currentUser}
+          onLogout={handleLogout}
+          onNavigateToMaison={() => setViewFlow('landing')}
+          initialTab={activeView === 'workspace' ? '3D Anatomy & AI' : 'Dashboard'}
+          formData={formData}
+          onChangeFormData={(updated) => {
+            setFormData(updated);
+            handleExecutePrediction(updated);
+          }}
+          onRunSimulation={(d) => handleExecutePrediction(d || formData)}
+          predictionResult={predictionResult}
+          onNavigateToAssessment={() => setActiveView('assessment')}
+          onNavigateToReport={() => setActiveView('reports')}
+          onNavigateToHistory={() => setActiveView('history')}
+          onNavigateToPerformance={() => setActiveView('performance')}
+          onNavigateToSettings={() => setActiveView('settings')}
+          onNavigateToWorkspace={() => setActiveView('workspace')}
+          samplePatients={samplePatients}
+          onSelectSample={handleSelectSample}
+          onPatientCreated={(newPatient) => {
+            setSamplePatients(prev => {
+              if (prev.some(p => p.id === newPatient.id)) return prev;
+              return [newPatient, ...prev];
+            });
+            handleSelectSample(newPatient);
+          }}
+          currentPatientMeta={currentPatientMeta}
+        />
+        {selectedPartId && (
+          <AnatomicalInfoModal
+            partId={selectedPartId}
+            onClose={() => setSelectedPartId(null)}
+          />
+        )}
+        <ModelEvaluationModal
+          isOpen={isEvaluationOpen}
+          onClose={() => setIsEvaluationOpen(false)}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
-      {/* Navigation Header */}
-      <Navbar
-        onOpenEvaluation={() => setIsEvaluationOpen(true)}
-        isBackendHealthy={isBackendHealthy}
+    <div className={`min-h-screen flex flex-row font-sans transition-colors duration-300 ${
+      isLight 
+        ? 'bg-[#F4F9F9] text-slate-900 selection:bg-teal-500/20 selection:text-teal-900' 
+        : 'bg-slate-950 text-slate-100 selection:bg-indigo-500/30 selection:text-indigo-200'
+    }`}>
+      {/* 1. Left Vertical Sidebar Navigation */}
+      <SidebarNav
+        activeView={activeView}
+        setActiveView={handleNavigateView}
+        environmentTheme={environmentTheme}
+        onToggleTheme={() => setEnvironmentTheme((t) => (t === 'light' ? 'dark' : 'light'))}
       />
 
-      {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
-        {/* Error notification banner */}
-        {error && (
-          <div className="p-4 bg-rose-950/50 border border-rose-800/80 rounded-2xl text-rose-300 text-sm flex items-center justify-between shadow-lg animate-shake">
-            <div className="flex items-center gap-2.5">
-              <AlertTriangle className="w-5 h-5 shrink-0 text-rose-400" />
-              <span>{error}</span>
+      {/* 2. Main Content Viewport */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+        {/* Top Header */}
+        <TopHeader
+          activeSystem={activeSystem}
+          setActiveSystem={setActiveSystem}
+          currentPatient={currentPatientMeta}
+          samplePatients={samplePatients}
+          onSelectSample={handleSelectSample}
+          onOpenEvaluation={() => setIsEvaluationOpen(true)}
+          isBackendHealthy={isBackendHealthy}
+          environmentTheme={environmentTheme}
+          activeViewTitle={getViewTitle()}
+        />
+
+        {/* Main Body */}
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1720px] w-full mx-auto">
+          {/* Error Banner */}
+          {error && (
+            <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl text-rose-800 text-xs flex items-center justify-between shadow-sm">
+              <div className="flex items-center gap-2.5">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-rose-600" />
+                <span>{error}</span>
+              </div>
+              <button
+                onClick={() => setError(null)}
+                className="px-2.5 py-1 bg-rose-100 hover:bg-rose-200 rounded-lg text-xs font-semibold"
+              >
+                Dismiss
+              </button>
             </div>
-            <button
-              onClick={() => setError(null)}
-              className="px-3 py-1 bg-rose-900/40 hover:bg-rose-900/70 rounded-lg text-xs font-semibold"
-            >
-              Dismiss
-            </button>
-          </div>
-        )}
+          )}
 
-        {/* Top Grid: 3D Visualization + Patient Form */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-          {/* Left Column: 3D Heart Visualizer & Quick Anatomy Explorer (7 cols) */}
-          <div className="lg:col-span-7 flex flex-col space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-base font-bold text-white flex items-center gap-2">
-                <Heart className="w-5 h-5 text-rose-500" />
-                Interactive 3D Cardiovascular Model
-              </h2>
-              <span className="text-xs text-slate-400">
-                Drag to orbit &bull; Scroll to zoom &bull; Click to inspect
-              </span>
-            </div>
-
-            {/* 3D Canvas Box */}
-            <div className="h-[460px] w-full">
-              <HeartCanvas
-                ref={heartRef}
-                predictionData={predictionResult}
-                selectedPartId={selectedPartId}
-                onSelectPart={(partId) => setSelectedPartId(partId)}
-              />
-            </div>
-
-            {/* Anatomical Structure Quick Select Chips */}
-            <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-3 flex flex-wrap items-center gap-1.5">
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-2">
-                Anatomy:
-              </span>
-              {Object.values(ANATOMICAL_PARTS).map((part) => (
-                <button
-                  key={part.id}
-                  onClick={() => {
-                    setSelectedPartId(part.id);
-                    if (heartRef.current) heartRef.current.focusPart(part.id);
-                  }}
-                  className={`px-2.5 py-1 text-xs rounded-lg transition font-medium border ${
-                    selectedPartId === part.id
-                      ? 'bg-sky-500/20 text-sky-300 border-sky-500/50 shadow-sm'
-                      : 'bg-slate-800/80 text-slate-300 border-slate-700/60 hover:bg-slate-800 hover:text-white'
-                  }`}
-                >
-                  {part.name.split(' (')[0]}
-                </button>
-              ))}
-            </div>
-
-            {/* Prediction Result Gauge Card */}
-            <PredictionResultCard
-              result={predictionResult}
-              isLoading={isLoading}
-            />
-          </div>
-
-          {/* Right Column: Patient Input Form (5 cols) */}
-          <div className="lg:col-span-5 flex flex-col">
-            <PatientForm
-              onSubmit={handleFormSubmit}
-              isLoading={isLoading}
+          {/* VIEW ROUTING */}
+          {activeView === 'overview' && (
+            <OverviewDashboard
+              formData={formData}
+              predictionResult={predictionResult}
+              onNavigateToAssessment={() => setActiveView('assessment')}
+              onNavigateToWorkspace={() => handleNavigateView('workspace')}
+              onNavigateToReport={() => setActiveView('reports')}
               samplePatients={samplePatients}
               onSelectSample={handleSelectSample}
+              currentPatientMeta={currentPatientMeta}
             />
-          </div>
-        </div>
+          )}
 
-        {/* Bottom Section: Risk Factors & Model Feature Attributions */}
-        {predictionResult && (
-          <section className="pt-2">
-            <RiskFactorsBreakdown result={predictionResult} />
-          </section>
-        )}
+          {activeView === 'assessment' && (
+            <NewAssessmentPage
+              formData={formData}
+              onChangeFormData={(updated) => setFormData(updated)}
+              onSubmitAssessment={(data) => {
+                handleExecutePrediction(data);
+                setActiveView('overview');
+              }}
+              isLoading={isLoading}
+              predictionResult={predictionResult}
+              onNavigateToAnatomy={() => handleNavigateView('workspace')}
+            />
+          )}
 
-        {/* Educational Clinical Footer Banner */}
-        <footer className="pt-8 pb-4 text-center border-t border-slate-800/80 text-xs text-slate-400 space-y-2">
-          <p className="max-w-3xl mx-auto leading-relaxed">
-            <strong>CardioVision 3D</strong> is built using the official UCI Machine Learning Repository Heart Disease Dataset (Cleveland Clinic Foundation). Model outputs reflect statistical correlation with angiographic diagnostic status ($\ge 50\%$ vessel narrowing) within this historical cohort and must not be used for direct clinical treatment or diagnosis without qualified medical evaluation.
-          </p>
-          <p className="text-[11px] text-slate-400">
-            Machine Learning Pipeline: scikit-learn &bull; Backend: FastAPI &bull; Frontend: React 19 + Three.js &bull; Styling: Tailwind CSS
-          </p>
-        </footer>
-      </main>
+          {activeView === 'workspace' && (
+            <AIDiagnosticWorkspace
+              formData={formData}
+              onChangeFormData={(updated) => setFormData(updated)}
+              onResetFormData={() => {
+                setFormData(DEFAULT_PATIENT_DATA);
+                handleExecutePrediction(DEFAULT_PATIENT_DATA);
+              }}
+              onRunSimulation={() => handleExecutePrediction(formData)}
+              predictionResult={predictionResult}
+              isLoading={isLoading}
+              onOpenEvaluation={() => setIsEvaluationOpen(true)}
+            />
+          )}
 
-      {/* Anatomical Detail Modal */}
+          {activeView === 'history' && (
+            <PatientHistoryView
+              currentPatientMeta={currentPatientMeta}
+              onSelectHistoricalDate={(item) => console.log('Selected date:', item)}
+            />
+          )}
+
+          {activeView === 'performance' && (
+            <ModelPerformanceView />
+          )}
+
+          {activeView === 'reports' && (
+            <ClinicalReportsView
+              formData={formData}
+              predictionResult={predictionResult}
+              currentPatientMeta={currentPatientMeta}
+            />
+          )}
+
+          {activeView === 'settings' && (
+            <AppSettingsView
+              environmentTheme={environmentTheme}
+              setEnvironmentTheme={setEnvironmentTheme}
+              isBackendHealthy={isBackendHealthy}
+            />
+          )}
+
+          {/* Educational Clinical Footer */}
+          <footer className={`pt-8 pb-4 text-center border-t text-xs space-y-2 ${
+            isLight ? 'border-slate-200 text-slate-700' : 'border-slate-800/80 text-slate-400'
+          }`}>
+            <p className="max-w-4xl mx-auto leading-relaxed text-[11px]">
+              <strong>CardioVision 3D</strong> is trained on the official UCI Cleveland Heart Disease clinical benchmark. Model predictions quantify statistical likelihood of coronary artery disease (&ge;50% vessel diameter reduction) and provide decision support without manufacturing artificial physical occlusions.
+            </p>
+            <p className="text-[10px] font-mono">
+              Full-Stack Architecture: FastAPI &bull; scikit-learn &bull; React 19 &bull; Three.js r186 &bull; Tailwind CSS
+            </p>
+          </footer>
+        </main>
+      </div>
+
+      {/* Anatomical Inspector Modal */}
       {selectedPartId && (
         <AnatomicalInfoModal
           partId={selectedPartId}

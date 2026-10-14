@@ -21,7 +21,8 @@ def encode(df: pd.DataFrame) -> pd.DataFrame:
     d["BBB_LBBB"] = (d["BBB"] == "LBBB").astype(float)
     d["BBB_RBBB"] = (d["BBB"] == "RBBB").astype(float)
     d = d.drop(columns=["BBB"] + [c for c in LEAKAGE_COLS + CONSTANT_COLS if c in d.columns])
-    return d.astype(float)
+    arr = np.ascontiguousarray(d.values, dtype=np.float64)
+    return pd.DataFrame(arr, columns=d.columns, index=d.index)
 
 def encode_target(series: pd.Series) -> np.ndarray:
     return series.isin(["CAD", "Stenotic"]).astype(int).to_numpy()
