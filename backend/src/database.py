@@ -12,6 +12,18 @@ DATA_DIR = os.path.join(BASE_DIR, "data")
 os.makedirs(DATA_DIR, exist_ok=True)
 
 DEFAULT_SQLITE_PATH = os.path.join(DATA_DIR, "cardiovision.db")
+
+# In Vercel Serverless environment, fallback to /tmp/ for SQLite writes
+if os.getenv("VERCEL") or (os.path.exists(DATA_DIR) and not os.access(DATA_DIR, os.W_OK)):
+    import shutil
+    tmp_db = "/tmp/cardiovision.db"
+    if not os.path.exists(tmp_db) and os.path.exists(DEFAULT_SQLITE_PATH):
+        try:
+            shutil.copy2(DEFAULT_SQLITE_PATH, tmp_db)
+        except Exception as e:
+            print(f"Notice: /tmp db copy exception: {e}")
+    DEFAULT_SQLITE_PATH = tmp_db
+
 DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{DEFAULT_SQLITE_PATH}")
 
 # Configure SQLite for production concurrency (WAL mode & foreign keys)
